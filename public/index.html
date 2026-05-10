@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERP ACME - Gestión de Ferreterías</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>🛠️ ACME Ferreterías</h1>
+                <p>Sistema ERP - Gestión de Productos</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Sección de Formulario -->
+            <section class="form-section">
+                <h2>Agregar Nuevo Producto</h2>
+                <form id="productForm" class="product-form">
+                    <div class="form-group">
+                        <label for="nombre">Nombre del Producto *</label>
+                        <input 
+                            type="text" 
+                            id="nombre" 
+                            name="nombre" 
+                            placeholder="Ej: Martillo de 1kg" 
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="codigo">Código del Producto *</label>
+                        <input 
+                            type="text" 
+                            id="codigo" 
+                            name="codigo" 
+                            placeholder="Ej: MAR-001" 
+                            required
+                        >
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="precio">Precio ($) *</label>
+                            <input 
+                                type="number" 
+                                id="precio" 
+                                name="precio" 
+                                placeholder="0.00" 
+                                step="0.01" 
+                                min="0" 
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cantidad">Cantidad en Stock *</label>
+                            <input 
+                                type="number" 
+                                id="cantidad" 
+                                name="cantidad" 
+                                placeholder="0" 
+                                min="0" 
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="descripcion">Descripción</label>
+                        <textarea 
+                            id="descripcion" 
+                            name="descripcion" 
+                            placeholder="Descripción breve del producto" 
+                            rows="3"
+                        ></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        ➕ Agregar Producto
+                    </button>
+                </form>
+
+                <div id="message" class="message"></div>
+            </section>
+
+            <!-- Sección de Tabla de Productos -->
+            <section class="table-section">
+                <h2>Listado de Productos</h2>
+                <div class="table-container">
+                    <table id="productTable" class="product-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Código</th>
+                                <th>Precio</th>
+                                <th>Stock</th>
+                                <th>Descripción</th>
+                                <th>Fecha Registro</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Los productos se insertarán aquí dinámicamente -->
+                        </tbody>
+                    </table>
+                    <div id="noProducts" class="no-products">
+                        ℹ️ No hay productos registrados. ¡Agrega uno!
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2026 ACME Ferreterías. Sistema ERP v1.0</p>
+        </footer>
+    </div>
+
+    <script>
+        const API_BASE_URL = '/api';
+
+        // Elementos del DOM
+        const productForm = document.getElementById('productForm');
+        const productTable = document.getElementById('productTable');
+        const messageDiv = document.getElementById('message');
+        const noProductsDiv = document.getElementById('noProducts');
+
+        // Cargar productos al cargar la página
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProducts();
+        });
+
+        // Evento de envío del formulario
+        productForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await addProduct();
+        });
+
+        // Función para cargar productos
+        async function loadProducts() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/productos`);
+                const result = await response.json();
+
+                if (result.success && result.data.length > 0) {
+                    populateTable(result.data);
+                    noProductsDiv.style.display = 'none';
+                    productTable.style.display = 'table';
+                } else {
+                    productTable.style.display = 'none';
+                    noProductsDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error al cargar productos:', error);
+                showMessage('Error al cargar los productos', 'error');
+            }
+        }
+
+        // Función para llenar la tabla con datos
+        function populateTable(products) {
+            const tbody = productTable.querySelector('tbody');
+            tbody.innerHTML = '';
+
+            products.forEach(product => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${product.id}</td>
+                    <td>${product.nombre}</td>
+                    <td><strong>${product.codigo}</strong></td>
+                    <td>$${parseFloat(product.precio).toFixed(2)}</td>
+                    <td>
+                        <span class="stock-badge ${product.cantidad <= 10 ? 'low' : ''}">
+                            ${product.cantidad} unidades
+                        </span>
+                    </td>
+                    <td>${product.descripcion || '-'}</td>
+                    <td>${new Date(product.fecha_registro).toLocaleDateString('es-ES')}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Función para agregar producto
+        async function addProduct() {
+            const nombre = document.getElementById('nombre').value.trim();
+            const codigo = document.getElementById('codigo').value.trim();
+            const precio = parseFloat(document.getElementById('precio').value);
+            const cantidad = parseInt(document.getElementById('cantidad').value);
+            const descripcion = document.getElementById('descripcion').value.trim();
+
+            if (!nombre || !codigo || isNaN(precio) || isNaN(cantidad)) {
+                showMessage('Por favor completa todos los campos requeridos', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/productos`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        nombre,
+                        codigo,
+                        precio,
+                        cantidad,
+                        descripcion: descripcion || null
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('✓ Producto agregado exitosamente', 'success');
+                    productForm.reset();
+                    loadProducts(); // Recargar tabla
+                } else {
+                    showMessage(result.message || 'Error al agregar producto', 'error');
+                }
+            } catch (error) {
+                console.error('Error al agregar producto:', error);
+                showMessage('Error de red al agregar producto', 'error');
+            }
+        }
+
+        // Función para mostrar mensajes
+        function showMessage(text, type) {
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
